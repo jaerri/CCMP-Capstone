@@ -7,7 +7,7 @@ Description: >
 
   The state machine can also be invoked through an HTTP API.
 
-  Uses AWS SAM 
+  Uses AWS SAM. 
 
 Resources:
   # Log group for StateMachine
@@ -61,7 +61,7 @@ Resources:
         Destinations:
           - CloudWatchLogsLogGroup:
               LogGroupArn: !GetAtt LogGroup.Arn
-      DefinitionUri: state-machine/state-machine.asl.json
+      DefinitionUri: state-machine.asl.json
       DefinitionSubstitutions:
         ResizeFnArn: !GetAtt ResizeImgFunction.Arn
       Events:
