@@ -78,7 +78,7 @@ Resources:
               InputTemplate: '{ "bucket": <bucket>, "key": <key> }'
               InputPathsMap:
                 bucket: $.detail.bucket.name
-                key: $.detail.bucket.key
+                key: $.detail.object.key
         OnApi:
           Type: Api
           Properties:

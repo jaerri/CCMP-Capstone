@@ -46,8 +46,7 @@
         },
         "ResizeFail": {
             "Type": "Fail",
-            "Error": "{% $states.input.name %}",
-            "Cause": "{% $states.input.cause %}"
+            "Cause": "{% $states.input.message %}"
         }
     },
     "QueryLanguage": "JSONata",
