@@ -1,0 +1,55 @@
+{
+    "StartAt": "Lambda Invoke",
+    "States": {
+        "Lambda Invoke": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Output": "{% $states.result.Payload %}",
+            "Arguments": {
+                "Payload": {
+                    "bucket": "{% $states.input.bucket %}",
+                    "key": "{% $states.input.key %}"
+                },
+                "FunctionName": "${ResizeFnArn}"
+            },
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.AWSLambdaException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException"
+                    ],
+                    "IntervalSeconds": 1,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 2,
+                    "JitterStrategy": "FULL"
+                }
+            ],
+            "Next": "CheckSuccessOrFailure",
+            "Assign": {
+                "success": "{% $exists($states.result.Payload.resizedObj) %}"
+            }
+        },
+        "CheckSuccessOrFailure": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Next": "ResizeSuccess",
+                    "Condition": "{% ($success) = (true) %}"
+                }
+            ],
+            "Default": "ResizeFail"
+        },
+        "ResizeSuccess": {
+            "Type": "Succeed"
+        },
+        "ResizeFail": {
+            "Type": "Fail",
+            "Error": "{% $states.input.name %}",
+            "Cause": "{% $states.input.cause %}"
+        }
+    },
+    "QueryLanguage": "JSONata",
+    "Comment": "Invokes Lambda function to resize image and checks for success/failure."
+}

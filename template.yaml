@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Creates a bucket to upload images to, invokes state machine that runs a 
+  Lambda function that resizes the image to thumbnail size and uploads to 
+  a destination bucket.
+
+  The state machine can also be invoked through an HTTP API.
+
+  Uses AWS SAM 
+
+Resources:
+  # Log group for StateMachine
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: RetainExceptOnCreate
+    Properties:
+      LogGroupName: /aws/vendedlogs/states/CCMP-ResizeImg-StateMachine
+
+  # S3 buckets
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+  DestinationBucket:
+    Type: AWS::S3::Bucket
+
+  # Main lambda function
+  ResizeImgFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      FunctionName: !Sub CCMP-ResizeImg-Function
+      Timeout: 30
+      MemorySize: 512
+      CodeUri: resize-img/
+      Handler: app.handler
+      Runtime: nodejs22.x
+      Environment:
+        Variables:
+          DestinationBucket: !Ref DestinationBucket
+      Policies: 
+        # SAM policy templates
+        # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html#serverless-policy-template-table
+        - S3ReadPolicy:
+            BucketName: !Ref UploadBucket
+        - S3WritePolicy:
+            BucketName: !Ref DestinationBucket
+
+  ResizeApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+
+  StateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub CCMP-ResizeImg-StateMachine
+      Logging: 
+        Level: ALL
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt LogGroup.Arn
+      DefinitionUri: state-machine/state-machine.asl.json
+      DefinitionSubstitutions:
+        ResizeFnArn: !GetAtt ResizeImgFunction.Arn
+      Events:
+        OnUpload:
+          Type: EventBridgeRule
+          Properties:
+            Pattern: 
+              # https://docs.aws.amazon.com/AmazonS3/latest/userguide/ev-events.html
+              source: [aws.s3]
+              detail:
+                bucket:
+                  name: [!Ref UploadBucket]
+            InputTransformer:
+              InputTemplate: '{ "bucket": <bucket>, "key": <key> }'
+              InputPathsMap:
+                bucket: $.detail.bucket.name
+                key: $.detail.bucket.key
+        OnApi:
+          Type: Api
+          Properties:
+            Path: /resize
+            Method: POST
+            RestApiId: !Ref ResizeApi
+            UnescapeMappingTemplate: true
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ResizeImgFunction
+        - Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: [
+              "logs:CreateLogDelivery",
+              "logs:CreateLogStream",
+              "logs:GetLogDelivery",
+              "logs:UpdateLogDelivery",
+              "logs:DeleteLogDelivery",
+              "logs:ListLogDeliveries",
+              "logs:PutLogEvents",
+              "logs:PutResourcePolicy",
+              "logs:DescribeResourcePolicies",
+              "logs:DescribeLogGroups"
+            ]
+            Resource: "*"
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  UploadBucketEndpoint: 
+    Description: "Endpoint URL to upload original image"
+    Value: !Sub "s3://${UploadBucket.DomainName}"
+  DestinationBucketEndpoint: 
+    Description: "Endpoint URL to bucket with resized images"
+    Value: !Sub "s3://${DestinationBucket.DomainName}"
+  ResizeImgFunction:
+    Description: "ResizeImg Lambda Function ARN"
+    Value: !GetAtt ResizeImgFunction.Arn
+  ResizeApiEndpoint:
+    Description: "API Gateway endpoint URL for invoking the StateMachine"
+    Value: !Sub "https://${ResizeApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/resize"
