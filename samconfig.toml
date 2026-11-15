@@ -19,13 +19,11 @@ confirm_changeset = true
 resolve_s3 = true
 stack_name = "CCMP-ResizeImg"
 s3_prefix = "CCMP-ResizeImg"
-parameter_overrides = "Author=\"jaerri\""
 image_repositories = []
 
 [default.sync.parameters]
 stack_name = "CCMP-ResizeImg"
 watch = true
-parameter_overrides = "Author=\"jaerri\""
 
 [default.package.parameters]
 resolve_s3 = true

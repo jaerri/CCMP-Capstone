@@ -13,7 +13,6 @@ Resources:
   # Log group for StateMachine
   LogGroup:
     Type: AWS::Logs::LogGroup
-    DeletionPolicy: RetainExceptOnCreate
     Properties:
       LogGroupName: /aws/vendedlogs/states/CCMP-ResizeImg-StateMachine
 
@@ -90,6 +89,7 @@ Resources:
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref ResizeImgFunction
+        # Allow Step Functions to log to CloudWatch
         - Version: 2012-10-17
           Statement:
           - Effect: Allow
