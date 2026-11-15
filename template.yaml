@@ -71,6 +71,7 @@ Resources:
             Pattern: 
               # https://docs.aws.amazon.com/AmazonS3/latest/userguide/ev-events.html
               source: [aws.s3]
+              detail-type: [Object Created]
               detail:
                 bucket:
                   name: [!Ref UploadBucket]
